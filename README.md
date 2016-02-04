@@ -11,5 +11,5 @@ Jonathan Campbell: Created GitHub repo and added the READ_ME file
 Steve Lee: Added data table Shiny application. Download the server.R and ui.R into a folder along with the data sets (currently the data table includes only the commodity flows and foreign trade data). Once you have all the files in a single folder, open up ui.R in Rstudio and just click 'run app'. It should work.... >_>
 This is just a start - Please feel free to edit and add datasets and other functionalities, or just let me know and I can add them.
 
-*1/29*
+*2/4*
 Schinria Islam: Created starter code for team, joining Commodity Flows and Foreign Trade data by export final destination Canada or Mexico.
