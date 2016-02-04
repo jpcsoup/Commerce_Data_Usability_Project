@@ -2,7 +2,7 @@ library(reshape)
 
 #download the datasets onto your computer first and set appropriate working directory
 
-commodityflow <- read.csv("commodityflow.txt") #read this in using Import Dataset to read it in cleanly
+commodityflow <- read.csv("commodityflow.txt")
 foreigntrade <- read.csv("foreigntrade.csv")
 
 commodityflow$Country <- rep(NA)
