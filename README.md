@@ -13,3 +13,6 @@ This is just a start - Please feel free to edit and add datasets and other funct
 
 *2/4*
 Schinria Islam: Created starter code for team, joining Commodity Flows and Foreign Trade data by export final destination Canada or Mexico.
+
+*2/10*
+Laura Uguccioni: Added a shapefile for US counties, merged the counties representing the same CFS area, mapped some characteristics of the Commodity Flows Survey. Added code to change codes in CFS dataset to names of industries, locations, mode of transports, and states.
