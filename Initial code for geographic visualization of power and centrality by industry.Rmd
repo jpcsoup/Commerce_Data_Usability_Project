@@ -1,0 +1,128 @@
+---
+title: "CDUP"
+output: html_document
+---
+
+```{r}
+setwd("~/Columbia/Commerce_Data_Usability_Project/Maps & Recodes") # Note: change to your working directory
+
+cfs <- read.csv("2012_cfs.txt")
+FIPS.Code <- read.csv("~/CRecode Sources/FIPS Code.csv")
+NAICS <- read.csv("~/Recode Sources/NAICS.csv")
+SCTG <- read.csv("~/Recode Sources/SCTG.csv")
+MT <- read.csv("~/Recode Sources/MT.csv")
+```
+
+Shapefile of CFS areas + other info: http://www.census.gov/econ/census/help/geography/cfs_areas.html
+
+Info: http://www.census.gov/econ/cfs/pums.html
+
+# Objective
+
+$$GIS and Network Analysis: mapping centrality and power for different industries, across CFS Areas$$
+
+# Recodes
+
+FIPS Codes:
+```{r}
+cfs$ORIG_STATE_name <- FIPS.Code$State[match(cfs$ORIG_STATE, FIPS.Code$FIPS)]
+cfs$DEST_STATE_name <- FIPS.Code$State[match(cfs$DEST_STATE, FIPS.Code$FIPS)]
+```
+
+NAICS (North American Industry Classification System) Codes
+```{r}
+cfs$NAICS_name <- NAICS$Description[match(cfs$NAICS, NAICS$NAICS)]
+```
+
+SCTG (Standard Classification of Transported Goods) Codes
+```{r}
+cfs$SCTG_name <- SCTG$Description[match(cfs$SCTG, SCTG$SCTG)]
+```
+
+MT (Mode of Transportation)
+```{r}
+cfs$MODE_name <- MT$Mode.of.transportation.Description[match(cfs$MODE, MT$Mode.Code)]
+```
+
+## Notes on suppressed data
+Metropolitan areas:
+
+```{r}
+length(unique(cfs$ORIG_CFS_AREA))
+length(unique(cfs$DEST_CFS_AREA))
+length(unique(c(cfs$DEST_CFS_AREA, cfs$ORIG_CFS_AREA)))
+```
+
+Note: The difference in number of locations is due to ORIG_MA = 00000 code, for MA origin suppressed & CFS AREA = 00-00000 for shipment origin suppressed completely.
+
+```{r}
+sum(cfs$ORIG_MA == 0)
+```
+
+SCTG suppressed code: 00
+Mode suppressed code: 00
+
+Percentage of dollar value suppressed:
+Percentage of weight suppressed:
+Percentage of hazardous material suppressed:
+
+# Geographic visualizations
+
+In QGIS: CFS.Code (string 8) = "ANSI_ST" + '-' + "CFS12_AREA"
+Dissolved by CFS_Code
+Note: 132 areas
+Join with cvs file below.
+
+Example 1: All products
+Group by origin CFS Area. Sum by dollar value & weight
+```{r}
+library(dplyr)
+cfs_by_dest <- group_by(cfs, DEST_CFS_AREA)
+
+Dest_summary <- summarize(cfs_by_dest, value = sum(SHIPMT_VALUE), weight = sum(SHIPMT_WGHT), avg_distance = mean(SHIPMT_DIST_ROUTED), prop_h = sum(HAZMAT != "N")/sum(HAZMAT == "N"))
+
+Dest_summary$value[is.na(Dest_summary$value)] <- 0 #replaced NA with 0
+Dest_summary$weight[is.na(Dest_summary$weight)] <- 0 # Return to this: why some destinations have a dollar value but no weight information? (services trade? no indication of suppressed values)
+```
+
+Example 2: Textiles, Leather, and Articles of Textiles or Leather
+```{r}
+textiles <- cfs_by_dest[cfs_by_dest$SCTG == 30 ,]
+
+Dest_summary_t <- summarize(textiles, t_value = sum(SHIPMT_VALUE), t_weight = sum(SHIPMT_WGHT), t_avg_distance = mean(SHIPMT_DIST_ROUTED), t_prop_h = sum(HAZMAT != "N")/sum(HAZMAT == "N"))
+
+Dest_summary_t$t_value[is.na(Dest_summary_t$t_value)] <- 0 
+Dest_summary_t$t_weight[is.na(Dest_summary_t$t_weight)] <- 0
+```
+
+Note: proportion of hazardous material can be weighted by value or weight of shipments
+
+
+Combine
+```{r}
+Summary <- merge(Dest_summary_t, Dest_summary, by = "DEST_CFS_AREA")
+```
+
+
+Write CVS
+```{r}
+write.csv(Summary, "cfs_r.csv")
+```
+
+# Objectives
+
+Interactive map (use Shiny):
+
+* Pounds per CFS area (orgin & destination)
+
+* Dollar value per CFS area (orgin & destination)
+
+* Network Centrality and Power per CFS area
+
+* Show all of above by industry, trasportation mode, type of good transported, and whether material is hazardous.
+
+* Show percentages of values suppressed
+
+Further steps: characteristics of counties can be associated to centrality of CFS areas, by industry. Possible values: economic indicators of state, migration / population growth, employment, etc.
+
+Further steps: combine layers to illustrate mutiple associations (shipments of hazardous material and points with toxic release emission points - from EPA), comparison of received vs sent, value & distance travelled. Note: Comparison maps can be displayed side by side or with different symbols on the same panel.
