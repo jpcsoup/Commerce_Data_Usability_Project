@@ -9,7 +9,7 @@ library(gdata)
 library(dplyr)
 
 #Load data sets
-cfs_2012 <- fread("cfs_2012.txt", data.table = FALSE)
+cfs_2012 <- fread("2012_cfs.txt", data.table = FALSE)
 foreign_trade <- read_excel("country.xlsx")
 country <- c("Canada", "Mexico")
 years <- c("1985", "2015")
