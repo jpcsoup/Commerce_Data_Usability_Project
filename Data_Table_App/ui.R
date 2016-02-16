@@ -9,7 +9,7 @@ library(gdata)
 library(dplyr)
 
 #Load data sets
-cfs_2012 <- as.data.frame(fread("2012_cfs.txt"))
+cfs_2012 <- fread("cfs_2012.txt", data.table = FALSE)
 foreign_trade <- read_excel("country.xlsx")
 
 shinyUI(fluidPage(
