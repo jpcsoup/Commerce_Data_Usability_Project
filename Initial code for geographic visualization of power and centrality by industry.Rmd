@@ -4,13 +4,14 @@ output: html_document
 ---
 
 ```{r}
-setwd("~/Columbia/Commerce_Data_Usability_Project/Maps & Recodes") # Note: change to your working directory
-
+setwd("~/Desktop/CDUP")
+#setwd("~/Columbia/Commerce_Data_Usability_Project/Maps & Recodes") # Note: change to your working directory
 cfs <- read.csv("2012_cfs.txt")
-FIPS.Code <- read.csv("~/CRecode Sources/FIPS Code.csv")
-NAICS <- read.csv("~/Recode Sources/NAICS.csv")
-SCTG <- read.csv("~/Recode Sources/SCTG.csv")
-MT <- read.csv("~/Recode Sources/MT.csv")
+setwd("~/Desktop/Commerce_Data_Usability_Project/")
+FIPS.Code <- read.csv("Recode Sources/FIPS Code.csv")
+NAICS <- read.csv("Recode Sources/NAICS.csv")
+SCTG <- read.csv("Recode Sources/SCTG.csv")
+MT <- read.csv("Recode Sources/MT.csv")
 ```
 
 Shapefile of CFS areas + other info: http://www.census.gov/econ/census/help/geography/cfs_areas.html
@@ -105,7 +106,7 @@ Summary <- merge(Dest_summary_t, Dest_summary, by = "DEST_CFS_AREA")
 
 
 Write CVS
-```{r}
+```{r eval=FALSE}
 write.csv(Summary, "cfs_r.csv")
 ```
 
