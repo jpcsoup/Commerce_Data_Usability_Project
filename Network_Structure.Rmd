@@ -1,0 +1,97 @@
+---
+title: "CFS Network Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Step 1: Load in the data
+
+Because the CFS data set is of such a large size, we'll use a package that is used to help deal with larger than average datasets.
+
+```{r }
+library(data.table)
+```
+
+```{r}
+df <- fread("~/Desktop/CDUP/2012_cfs.txt", data.table = FALSE)
+```
+
+# Step 2: Aggregate Data by Shipment route
+
+Now, since we have the data loaded, we want to collect the data by shipping route between two separate locations.  Once again, since we are working with a larger than average, we will use the plyr and dplyr packages as they are suited to performing data frame transformations on a large scale.
+
+```{r}
+library(plyr)
+library(dplyr)
+```
+
+In the dplyr code below, we are using a piping mechanism (%>%).  The easiest way to interpret this mechanism is that it takes the output of a previous line of code and makes in the input for the following line.  Therefore, in this example, we take our original data frame, and that becomes the input for the mutate command below.  The resulting data frame from the mutate command becaomes the input for the group_by command and so on.
+
+```{r}
+edge_list <- df %>%
+  # Create unique columns for location
+  mutate(ORIG = paste(ORIG_STATE, ORIG_MA, ORIG_CFS_AREA, sep = "|"),
+         DEST = paste(DEST_STATE, DEST_MA, DEST_CFS_AREA, sep = "|")) %>%
+  # Group the data by shipping route
+  group_by(ORIG, DEST) %>%
+  # Calculate summaries of each shipping route
+  summarize(n_shipments = n(), # number of shipments in dataset
+            weight = mean(SHIPMT_WGHT), # average weight
+            value = mean(SHIPMT_VALUE), # average value
+            distance = mean(SHIPMT_DIST_ROUTED)) # average distance
+```
+
+Because the data frame is still large, let's get a sense for how the number of shipments between destinations is distributed.
+
+```{r}
+library(ggplot2)
+```
+
+```{r fig.align='center'}
+ggplot(edge_list, aes(x=n_shipments)) +
+  geom_histogram(binwidth = 1) +
+  ggtitle("Histogram of # of Shipments between locations") +
+  theme_bw() + 
+  coord_cartesian(xlim = c(0,1000), ylim = c(0,250)) + 
+  geom_segment(aes(x = 52, y = 0, xend = 52, yend = max(edge_list$n_shipments), color = 'red')) + 
+  geom_segment(aes(x = 104, y = 0, xend = 104, yend = max(edge_list$n_shipments), color = 'red'))
+```
+
+We can see that there are a large number of shipping routes with very low levels of shipping.  For our purposes, initially, we will subset to use only those routes with more than 52 shipments throughout the survey.
+
+```{r}
+edge_list1 <- edge_list[edge_list$n >= 52,]
+```
+
+# Create a Network Object
+
+Now comes time to make the network object.  For this part, we will utilize R's network analysis package: igraph.
+
+```{r}
+library(igraph)
+```
+
+```{r}
+graph <- graph_from_data_frame(edge_list1, directed = TRUE)
+```
+
+# Plot the network
+
+```{r fig.align='center'}
+plot.igraph(graph, vertex.size = 1, 
+            vertex.label = NA, 
+            edge.width = log(E(graph)$n_shipments)/40, 
+            edge.arrow.size = 0.1)
+```
+
+```{r fig.align='center'}
+plot.igraph(graph, vertex.size = 1, 
+            vertex.label = NA, 
+            layout = layout.lgl(graph), 
+            edge.width = log(E(graph)$n_shipments)/40, 
+            edge.arrow.size = 0.1)
+```
+
