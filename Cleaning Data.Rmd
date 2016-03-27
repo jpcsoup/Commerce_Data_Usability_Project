@@ -1,0 +1,157 @@
+---
+title: "Cleaning and Aggregating Data"
+author: "Laura Uguccioni"
+date: "March 21, 2016"
+output: html_document
+---
+
+# Cleaning and Aggregating the Economics and Socio-Demographic Indicators.
+
+This section covers:
+1. Downloading the data
+2. Preparing the file for R
+3. Uploading the data into R
+4. Obtaining the mapping of counties to CFS areas
+5. Uploading and Modifying the Mapping File in R
+6. Merging the datasets
+7. Summarizing the migration dataset by CFS Area
+8. Saving the file
+
+I use the migration dataset as an example. Since we will be using multiple datasets, these can be merged after step 3. The rest of the process is almost exactly the same.
+
+The goal of this section: aggregating the economic and socio-demographic data by CFS Areas, so that it can be compared to the results from the network analysis of the trade data.
+
+# 1. Downloading the data
+1. Visit American Fact Finder: http://factfinder.census.gov
+2. Selected guided search
+3. Select: "I'm looking for information about people" --> NEXT --> "Population change" --> "Migration (International / Domestic)" --> NEXT --> Geographic type: ".... County - 50"; Select one or more geographic area: "All counties within the United States" --> Add to selection --> NEXT" --> SKIP THIS STEP.
+4. A list of tables appears. I selected: GEOGRAPHIC MOBILITY BY SELECTED CHARACTERISTICS IN THE UNITED STATES.
+5. To dowload, click on 'Advanced Search' at the bottom of the page (this is the only way to download the entire table). Select the table and click download.
+
+Follow the same process for other datasets of interest.
+
+# 2. Preparing the file for R
+1. Unzip folder. I renamed it 'migration' and moved into my project folder.
+2. Note: one file contains the data: `r "ACS_14_5YR_S0701_with_ann.csv" ` ; another file contains the metadata (that is, data that describes the other data): `r "ACS_14_5YR_S0701_metadata.csv"`
+3. Open the data file and note the variables of interest: GEO.id2 (code to identify county: also called FIPS code),  GEO.display-label (county name and state), HC01_EST_VC01 (population estimate), HC02_EST_VC01 (% moved within same county), HC03_EST_VC01 (% moved from different county, same state), HC04_EST_VC01 (% moved from different state), HC05_EST_VC01 (% moved from abroad)
+4. In Excel, I renamed the variables of interest to: FIPS, county, population, same_county, same_state, different_state, moved_from_abroad
+5. In Excel, I deleted: the second row with the descriptions and all un-needed columns.
+
+The file is now ready for R.
+
+# 3. Uploading the Data into R
+1. Using RStudio, select: Tools --> Import Dataset --> From Local File
+2. Select the location of the file
+3. Name the dataset 'migration'; select 'YES' for headings; click ok.
+4. The command to upload the file appears in the Console. This can be copied and pasted in the R file as below:
+
+```{r}
+migration <- read.csv("~/Columbia/CDUP/Economics and socio-demographic indicators/Migration/ACS_14_5YR_S0701_with_ann.csv")
+```
+
+# 4. Obtaining the mapping of counties to CFS areas
+
+The trade data from the Commodity Flow Survey is organized by CFS areas, which incorporate particular sets of counties. For our migration data to be comperable to the trade data, we need to map the county data to the CFS areas and take an average for sets of counties, weighting by population.
+
+1. Go to this link to find the mapping of counties to CFS ares: http://www.census.gov/econ/census/help/geography/cfs_areas.html
+2. Download the file called 'List of the US counties making up the CFS Areas in both 2007 and 2012'
+3. Save the file as .csv to the project folder (I renamed it: `r "county_to_CFS_mapping"`).
+4. Open the file in Excel and take a look. Note: The combination of the variables 'ANSI ST' and 'ANSI CNTY' uniquely identifies the counties (it is the FIPS code identified in the migration dataset). The combination of 'ANSI ST' and 'CFS12 AREA' uniquely identifies the CFS areas. 'CNTY NAME' is the name of the county and 'CFS12 NAME' is the name of the CFS area. Further note: Multiple counties map to the same CFS area with no overlaps.
+5. In Excel, delete the first row (the table title) and un-needed columns. I renamed the relevant variables to: State, CNTY, CNTY_NAME, CFS_AREA, CFS_NAME.
+
+The file is now ready to be uploaded into R.
+
+# 5. Uploading and Modifying the Mapping File in R
+
+1. As earlier, select: Tools --> Import Dataset --> From Local File and select file.
+
+```{r}
+mapping <- read.csv("~/Columbia/CDUP/Economics and socio-demographic indicators/county_to_CFS_mapping.csv")
+```
+
+2. Use the state and county codes from the mapping file to create the FIPS code. This is a bit tricky because some 0's need to be added infront of the county code to create a 3-digit number. Use the following R code to make the transformation.
+
+```{r}
+mapping$county_code <- ifelse(mapping$CNTY < 10, paste0("00", mapping$CNTY), ifelse(mapping$CNTY < 100, paste0("0", mapping$CNTY), as.character(mapping$CNTY)))
+```
+
+3. Now concatenate the state code with the 3-digit county code to create the FIPS code.
+
+```{r}
+mapping$FIPS <- paste0(mapping$State, mapping$county_code)
+```
+
+Note that the FIPS code in the mapping and migration datasets now match.
+
+4. Now create a new CFS-area code in the mapping file by combining the state and the current CFS-area code. To match the CFS code in the shapefile (which will be used later), the state code must have 2 digits and the two variables need to have a dash inbetween .
+
+```{r}
+mapping$state_code <- ifelse(mapping$State < 10, paste0("0",mapping$State), as.character(mapping$State))
+mapping$CFS_Code <- paste0(mapping$state_code,"-",mapping$CFS_AREA)
+```
+
+5. Before merging the datasets, delete the variables in the mapping datasets that are no longer of interest. The names of counties can be kept as a check and then deleted after.
+
+```{r}
+mapping <- mapping[, c("CNTY_NAME", "CFS_NAME", "FIPS", "CFS_Code")]
+```
+
+# 6. Merging the datasets
+
+Now the two datasets can be merged using the FIPS code.
+
+```{r}
+migration <- merge(migration, mapping, by = "FIPS", all = TRUE )
+```
+
+__Side note: Why does the mapping dataset have an additional obervation?__
+
+Note that the mapping file has 1 more observation than the migration file. This means that the mapping file has one more county.
+
+Identify missing county
+```{r}
+migration1 <- merge(migration, mapping, by = "FIPS", all = TRUE )
+migration1$FIPS[which.max(is.na(migration1$county))] # FIPS
+migration1$CFS_NAME[which.max(is.na(migration1$county))] # CFS area that the county belongs to.
+```
+
+* The FIPS code corresponds to: Bedford city (source: http://www2.census.gov/geo/docs/reference/codes/files/st51_va_cou.txt)
+
+* Bedford (independent) city, Virginia (51-515), changed to town status and added to Bedford County (51-019) effective July 1, 2013. Source: http://www.census.gov/geo/reference/county-changes.html
+
+* This change occured after the release of the file mapping counties to CFS areas and before the release of the migration data.
+
+* Bedford county is already part as 'Remainder of Virginia' CFS area (see output from code below) - as was the city of Bedford.
+
+```{r}
+migration1[migration1$FIPS == "51019",]$CFS_NAME
+```
+
+* Therefore, we can ignore merging this county.
+
+```{r}
+rm(migration1)
+```
+
+__End of side note__
+
+# 7. Summarizing the migration dataset by CFS Area (weighting the population)
+
+```{r}
+library(dplyr)
+group_migration <- group_by(migration, CFS_Code)
+
+migration_by_CFSArea <- summarize(group_migration, same_county = sum(same_county * population)/sum(population) , same_state = sum(same_state * population)/sum(population), different_state = sum(different_state * population)/sum(population), moved_from_abroad = sum(moved_from_abroad * population)/sum(population), CFS_Name = CFS_NAME[1])
+```
+
+The dataset `r "migration_by_CFSArea"` is now ready to be merged with the output from the power and centrality networkd analysis of trade data.
+
+# 8. Saving the file
+
+Set working directory to project folder by Selecting: Session --> Set Working Directory --> Choose Directory and identifying the location of project folder
+
+```{r}
+setwd("~/Columbia/CDUP/Economics and socio-demographic indicators") # setting working directory
+
+save(migration_by_CFSArea, file = "migration_by_CFSArea.RData")
+```
